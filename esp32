@@ -1,0 +1,170 @@
+#include <ESP32Servo.h>
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <UniversalTelegramBot.h>
+#include <ESP32AnalogRead.h>
+
+// Wifi network station credentials
+#define WIFI_SSID "Vigokk"
+#define WIFI_PASSWORD "22222222"
+
+// Telegram BOT Token 
+#define BOT_TOKEN "6215135053:AAEl3bEEjbzPrXOHoeEzeuniLBLum8IELTU"
+#define CHAT_ID "5962272946" 
+
+const unsigned long BOT_MTBS = 1000; // mean time between scan messages
+WiFiClientSecure secured_client;
+UniversalTelegramBot bot(BOT_TOKEN, secured_client);
+unsigned long bot_lasttime; // last time messages' scan has been done
+
+//LED
+#define ledPin 33
+int ledStatus = 0;
+
+//Servo Motor
+#define SERVO_PIN 26  //pin GIOP26 connected to servo motor
+int motorAngle = 0;
+Servo servoMotor;
+
+//vibration Sensor
+const int VIBRATION_PIN = 34;
+const int VIBRATION_THRESHOLD = 100;
+
+//buzzer
+#define buzzer 32
+
+
+void handleNewMessages(int numNewMessages)
+{
+  Serial.print("handleNewMessages ");
+  Serial.println(numNewMessages);
+  for (int i = 0; i < numNewMessages; i++)
+  {
+    String chat_id = String(bot.messages[i].chat_id);
+    if (chat_id != CHAT_ID)
+    {
+      bot.sendMessage(chat_id, "Unauthorized user", "");
+    }
+    else
+    {
+      String text = bot.messages[i].text;
+      String from_name = bot.messages[i].from_name;
+      if (from_name == "")
+        from_name = "Guest";
+      if (text == "/unlock")
+      {
+        motorAngle = 180;
+        servoMotor.write(180);
+        bot.sendMessage(chat_id, "Kunci berhasil dibuka", "");
+        digitalWrite(ledPin, LOW); // turn the LED on (HIGH is the voltage level)
+        ledStatus = 0;
+        digitalWrite (buzzer, HIGH); //turn buzzer on
+        delay(1000);
+        digitalWrite (buzzer, LOW); //turn buzzer on
+        delay(500);
+      }
+      if (text == "/lock")
+      {
+        motorAngle = 0;
+        servoMotor.write(0);
+        bot.sendMessage(chat_id, "Kunci berhasil dikunci", "");
+        digitalWrite(ledPin, HIGH); // turn the LED on (HIGH is the voltage level)
+        ledStatus = 1;
+        digitalWrite (buzzer, HIGH); //turn buzzer on
+        delay(250);
+        digitalWrite (buzzer, LOW); //turn buzzer on
+        delay(250);
+        digitalWrite (buzzer, HIGH); //turn buzzer on
+        delay(250);
+        digitalWrite (buzzer, LOW); //turn buzzer on
+        delay(250);
+      }
+      if (text == "/status")
+      {
+        if (motorAngle)
+        {
+          bot.sendMessage(chat_id, "Kunci Terbuka", "");
+        }
+        else
+        {
+          bot.sendMessage(chat_id, "Terkunci", "");
+        }
+      }
+      if (text == "/start")
+      {
+        String welcome = "Halo, " + from_name + ".\n";
+        welcome += "Selamat Datang di OLTOKEY Bot 😉\n\n";
+        welcome += "OLTOKEY (OLT Online Door Tele Key) merupakan Bot Telegam yang berfungsi membuka kunci dan menutup kunci pada pintu perangkat yang terhubung dengan hardware OLTOKEY.\n\n";
+        welcome += "✔ Segala perintah yang dijalankan pada OLTOKEY Bot akan disimpan pada dashboard OLTOKEY, jadi gunakan fitur yang tersedia dengan baik yang sesuai dengan SOP.\n\n";
+        welcome += "❗ Pastikan kembali untuk mengunci pintu ketika pekerjaan pada perangkat telah diselesaikan.\n\n";
+        welcome += "OLTOKEY Make It Easy 😉\n\n";
+        welcome += "/unlock : untuk membuka kunci OLT\n";
+        welcome += "/lock : untuk mengunci kunci OLT\n";
+        welcome += "/status : untuk melihat status kunci OLT\n";
+        bot.sendMessage(chat_id, welcome, "Markdown");
+      }
+    }
+  }
+}
+
+void setup()
+{
+  Serial.begin(115200);
+  Serial.println();
+  pinMode(ledPin, OUTPUT); // initialize digital ledPin as an output.
+  delay(10);
+  digitalWrite(ledPin, LOW); // initialize pin as off (active LOW)
+  // attempt to connect to Wifi network:
+  Serial.print("Connecting to Wifi SSID ");
+  Serial.print(WIFI_SSID);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  secured_client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
+  while (WiFi.status() != WL_CONNECTED)
+  {
+  Serial.print(".");
+  delay(500);
+  }
+  Serial.print("\nWiFi connected. IP address: ");
+  Serial.println(WiFi.localIP());
+
+//Motor Servo
+  servoMotor.attach(SERVO_PIN);
+  servoMotor.write(0); // Set posisi awal motor servo ke 0 derajat
+
+//Vibration sensor
+  analogReadResolution(12);
+
+//LED
+  pinMode(ledPin, OUTPUT); // initialize digital ledPin as an output.
+  delay(10);
+  digitalWrite(ledPin, HIGH);
+
+//buzzer
+  pinMode(buzzer, OUTPUT);
+}
+
+void loop()
+{
+  if (millis() - bot_lasttime > BOT_MTBS)
+  {
+    int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+    while (numNewMessages)
+    {
+      Serial.println("got response");
+      handleNewMessages(numNewMessages);
+      numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+    }
+    bot_lasttime = millis();
+  }
+
+//Vibration Sensor
+  int vibrationValue = analogRead(VIBRATION_PIN);
+  Serial.print("Nilai sensor getaran: ");
+  Serial.println(vibrationValue);
+
+  if (vibrationValue > 1000) {
+    Serial.println("Adanya gerakan tidak wajar!");
+    //bot.sendMessage(CHAT_ID, "Adanya gerakan tidak wajar!!!", "");
+  }
+  delay(100);
+}
