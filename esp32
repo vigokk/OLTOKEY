@@ -3,27 +3,28 @@
   #include <WiFiClientSecure.h>
   #include <UniversalTelegramBot.h>
   #include <ESP32AnalogRead.h>
+  #include <HTTPClient.h>
 
   // Wifi network station credentials
-  #define WIFI_SSID "Vigokk"
-  #define WIFI_PASSWORD "22222222"
+  #define WIFI_SSID "Vigokk" //ssid wifi
+  #define WIFI_PASSWORD "22222222" //pasword wifi
 
   // Telegram BOT Token 
-  #define BOT_TOKEN "5983433316:AAGgJm7aKbg1fHUbbJi_Jyu13w480hoElhw"
-  #define CHAT_ID "5962272946" 
-  const String ALLOWED_USERS[] = {"5962272946", "1168615775", "1257800104"};
+  #define BOT_TOKEN " " //token bot
+  #define CHAT_ID "12345678" //admin user id telegram
+  const String ALLOWED_USERS[] = {"12345678", "23145675", "85843567", "53578765", "95768432"}; //user id telegram
 
   const unsigned long BOT_MTBS = 1000; // mean time between scan messages
   WiFiClientSecure secured_client;
   UniversalTelegramBot bot(BOT_TOKEN, secured_client);
   unsigned long bot_lasttime; // last time messages' scan has been done
-
+ 
   //LED
-  #define ledPin 33
+  #define ledPin 32
   int ledStatus = 0;
 
   //Servo Motor
-  #define SERVO_PIN 26  //pin GIOP26 connected to servo motor
+  #define SERVO_PIN 26 
   int motorAngle = 0;
   Servo servoMotor;
   bool doorLocked = true;
@@ -32,7 +33,6 @@
   //Magnetic Sensor
   #define DOOR_SWITCH_PIN 19
   int doorState = 0;
-  int unlockDuration = 10000; // Durasi untuk mengunci otomatis (10 detik)
   bool isDoorClosed = false;
 
   //buzzer
@@ -57,7 +57,7 @@
     }
     if (!is_allowed_user)
     {
-      bot.sendMessage(chat_id, "Unauthorized user", "");
+      bot.sendMessage(chat_id, "User tidak terdaftar pada database 😟", "");
       continue;
     }
       else
@@ -69,55 +69,60 @@
         if (text == "/unlock")
         {
           motorAngle = 180;
-          servoMotor.write(180);
+          servoMotor.write(90);
           doorLocked = false;
           bot.sendMessage(chat_id, "Pintu berhasil dibuka", "");
-          digitalWrite(ledPin, LOW); // turn the LED on (HIGH is the voltage level)
+          bot.sendMessage(chat_id, "❗ Pastikan kembali untuk mengunci pintu ketika pekerjaan pada perangkat telah diselesaikan.", "");
+          digitalWrite(ledPin, LOW); 
           ledStatus = 0;
-          digitalWrite (buzzer, HIGH); //turn buzzer on
+          digitalWrite (buzzer, HIGH); 
           delay(1000);
-          digitalWrite (buzzer, LOW); //turn buzzer on
+          digitalWrite (buzzer, LOW); 
           delay(500);
         }
         if (text == "/lock")
         {
           motorAngle = 0;
-          servoMotor.write(0);
+          servoMotor.write(25);
           doorLocked = true;
           bot.sendMessage(chat_id, "Pintu berhasil dikunci", "");
-          digitalWrite(ledPin, HIGH); // turn the LED on (HIGH is the voltage level)
+          digitalWrite(ledPin, HIGH); 
           ledStatus = 1;
-          digitalWrite (buzzer, HIGH); //turn buzzer on
+          digitalWrite (buzzer, HIGH); 
           delay(250);
-          digitalWrite (buzzer, LOW); //turn buzzer on
+          digitalWrite (buzzer, LOW); 
           delay(250);
-          digitalWrite (buzzer, HIGH); //turn buzzer on
+          digitalWrite (buzzer, HIGH); 
           delay(250);
-          digitalWrite (buzzer, LOW); //turn buzzer on
+          digitalWrite (buzzer, LOW); 
           delay(250);
         }
         if (text == "/status")
         {
           if (motorAngle)
           {
-            bot.sendMessage(chat_id, "Kunci Terbuka", "");
+            bot.sendMessage(chat_id, "Pintu Terbuka", "");
           }
           else
           {
-            bot.sendMessage(chat_id, "Terkunci", "");
+            bot.sendMessage(chat_id, "Pintu Terkunci", "");
           }
+        }
+        if (text == "/isijob"){
+             bot.sendMessage(chat_id, "❗Silahkan Klik @oltokeyjob_bot untuk mengisikan data.", "");         
         }
         if (text == "/start")
         {
           String welcome = "Halo, " + from_name + ".\n";
           welcome += "Selamat Datang di OLTOKEY Bot 😉\n\n";
-          welcome += "OLTOKEY (OLT Online Door Tele Key) merupakan Bot Telegam yang berfungsi membuka kunci dan menutup kunci pada pintu perangkat yang terhubung dengan hardware OLTOKEY.\n\n";
+          welcome += "OLTOKEY (OLT Door Tele Key) merupakan Bot Telegam yang berfungsi membuka kunci dan menutup kunci pada pintu perangkat yang terhubung dengan hardware OLTOKEY.\n\n";
           welcome += "✔ Segala perintah yang dijalankan pada OLTOKEY Bot akan disimpan pada dashboard OLTOKEY, jadi gunakan fitur yang tersedia dengan baik yang sesuai dengan SOP.\n\n";
-          welcome += "❗ Pastikan kembali untuk mengunci pintu ketika pekerjaan pada perangkat telah diselesaikan.\n\n";
+          welcome += "❗️Pastikan untuk mengisi data akses pada /isijob \n\n";
           welcome += "OLTOKEY Make It Easy 😉\n\n";
           welcome += "/unlock : untuk membuka kunci OLT\n";
           welcome += "/lock : untuk mengunci kunci OLT\n";
           welcome += "/status : untuk melihat status kunci OLT\n";
+          welcome += "/isijob : untuk mengisi data akses\n";
           bot.sendMessage(chat_id, welcome, "Markdown");
         }
       }
@@ -146,9 +151,7 @@
 
   //Motor Servo
     servoMotor.attach(SERVO_PIN);
-    servoMotor.write(0); // Set posisi awal motor servo ke 0 derajat
-
-  //Magnetic Sensor
+    servoMotor.write(25); // Set posisi awal motor servo ke 0 derajat
 
   //LED
     pinMode(ledPin, OUTPUT); // initialize digital ledPin as an output.
@@ -157,8 +160,12 @@
 
   //buzzer
     pinMode(buzzer, OUTPUT);
+  
+  //webhook
+  // String url = "https://api.telegram.org/bot" + String(BOT_TOKEN) + "/setWebhook?url=https://script.google.com/macros/s/AKfycbzfaxOci_dtJkHZSE1BZzah-MRsq4Cvg97wv0HpT9bZJ-MoslD7iElsCURTfLM0CJUhNw/exec";
   }
-
+  
+  
   void loop()
   {
     if (millis() - bot_lasttime > BOT_MTBS)
@@ -174,19 +181,8 @@
     }
   //Magnetic Sensor ketika pintu dipaksa terbuka saat terkunci
     if (digitalRead(DOOR_SWITCH_PIN) == HIGH && doorLocked) {
-      Serial.println("Ada gerakan tidak wajar!");
-      bot.sendMessage(CHAT_ID, "Ada gerakan tidak wajar!!");
+      Serial.println("Ada gerakan tidak wajar pada OLT!");
+      bot.sendMessage(CHAT_ID, "Ada gerakan tidak wajar pada OLT!!");
     }
     delay(1000);
-    
-// pengembangan (masih error)
-//  if (digitalRead(DOOR_SWITCH_PIN) == LOW && doorUnlocked) { // Jika magnetic door switch menempel dan servo berada di posisi 180 derajat
-  //  delay(unlockDuration); // Menunggu selama durasi yang telah ditentukan
-    //motorAngle = 0; // Mengatur posisi servo menjadi 0 derajat
-    //digitalWrite(DOOR_SWITCH_PIN, HIGH); 
-    //digitalWrite(doorLocked, true);
-    //servoMotor.write(motorAngle); // Menggerakkan servo ke posisi 0 derajat
-    //digitalWrite(ledPin, HIGH);
-    //delay(500); // Memberikan jeda waktu 0.5 detik
-  //}
 }
