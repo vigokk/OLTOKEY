@@ -1,11 +1,32 @@
-var token = " "; //token bot telegram
+var token = " "; //token telegram
 var url = "https://api.telegram.org/bot" + token;
 var webAppUrl = " "; //alamat webhook
+var chat_id = "1168615775";
+var ALLOWED_USERS = ["12345678", "1168615775"]; //user id
+
+function handleNewMessages(numNewMessages) {
+  Logger.log("handleNewMessages " + numNewMessages);
+  for (var i = 0; i < numNewMessages; i++) {
+    var chat_id = String(bot.messages[i].chat_id);
+    var is_allowed_user = false;
+    for (var j = 0; j < ALLOWED_USERS.length; j++) {
+      if (chat_id == ALLOWED_USERS[j]) {
+        is_allowed_user = true;
+        break;
+      }
+    }
+    if (!is_allowed_user) {
+      sendMessage(chat_id, "User tidak terdaftar pada database 😟", "");
+      continue;
+    }
+  }
+}
+
 function setWebhook() {
     var response = UrlFetchApp.fetch(url + "/setWebhook?url=" + webAppUrl);
     Logger.log(response.getContentText());
   }
-
+  
 function doPost(e) {
   var stringJson = e.postData.getDataAsString();
   var updates = JSON.parse(stringJson);
@@ -15,23 +36,31 @@ function doPost(e) {
   var textBot = updates.message.text;
   var chat_bot = textBot;
   var command_cek = chat_bot.substring(0, 1);
-  var command = chat_bot.split(" ")[0]; // command
-  var subCommand = chat_bot.split(" ")[1]; // odp
- 
+  var command = chat_bot.split(" ")[0];
+  var subCommand = chat_bot.split(" ")[1];
+
   if (command_cek == "/") {
   switch(command){
+    case "/start" :
+      let text1 = "Selamat datang di OLTOKEY Job Bot 😉\nOLTOKEY Job Bot merupakan Telegam yang berfungsi untuk menyimpan data akses pada perangkat yang terhubung dengan hardware OLTOKEY.\n\n❗️Pastikan kembali untuk mengisi data akses sesuai dengan format pengisian /job.\n\nOLTOKEY Make It Easy 😉\n\n/job : untuk mengisi data akses\n/formatjob : untuk mengetahui cara pengisian data akses\n/help : untuk mengetahui list perintah";
+      sendText(id, text1);
+    break;
     case "/formatjob" :
-      let text2 = "Contoh Pengisian /job untuk GCU atau Repair : /job GCU - Done atau /job Repair SFP Pending 😉";
+      let text2 = "Berikut contoh pengisian /job untuk GCU atau Repair 😊 :\nUntuk GCU : /job GCU - Done\nUntuk Repair : /job Repair (komponen) (status)\nContoh pengisian Repair : /job Repair Patchcord Done";
       sendText(id, text2);  
+    break;
+    case "/help" :
+      let text3 = "Berikut list perintah yang dapat digunakan 😁 :\n/job : untuk mengisi data akses\n/formatjob : untuk mengetahui cara pengisian data akses\n/help : untuk mengetahui list perintah";
+      sendText(id, text3);  
     break;
     case "/job" :
      simpan(updates);
     break;
     default:
-    sendText(id,"Format salah !, gunakan command /formatjob untuk mengetahui sususan format yang benar 🙂");
+    sendText(id,"Perintah salah!, harap berikan perintah sesuai dengan yang tersedia 😄");
   }
  } else {
-    let eror ="Klik Menu untuk mengetahui semua command yang ada";
+    let eror ="Berikut list perintah yang ada";
     sendText(id,error);
   }
  
@@ -44,20 +73,20 @@ function simpan(data) {
   var pesan = data.message.text;
   let text = pesan;
   var now = new Date();
-  var waktu = Utilities.formatDate(now, "Asia/Jakarta", "dd/mm/yyyy hh:mm:ss"); // format timestamp indonesia
+  var waktu = Utilities.formatDate(now, "Asia/Jakarta", "dd/mm/yyyy hh:mm:ss"); //format timestamp indonesia
 
-  var txt1 = text.split(" ")[0]; // kata pertama/command/janjji waktu / 2-06-2022 / menghadiri pernikahan
-  var pekerjaan = text.split(" ")[1]; // kata kedua
-  var perbaikan = text.split(" ")[2]; // kata kedua
+  var txt1 = text.split(" ")[0]; // kata pertama
+  var detail = text.split(" ")[1]; // kata kedua
+  var kerusakan = text.split(" ")[2]; // kata kedua
   var status = text.split(" ")[3]; // kata ketiga
 
-  var SSID = " "; //alamat spreadsheet untuk simpan
-  var namasheet = " "; //nama sheet pada spreadsheet
-  SpreadsheetApp.openById(SSID).getSheetByName(namasheet).appendRow([waktu, id, username, pekerjaan, perbaikan, status]); // input log
-  sendText(id,"Data pekerjaan telah disimpan, Terimakasih 🙂");
+  var SSID = " "; //alamat spreadsheet
+  var namasheet = "user"; //nama sheet
+  SpreadsheetApp.openById(SSID).getSheetByName(namasheet).appendRow([waktu, id, username, detail, kerusakan, status]); // input log
+  sendText(id,"Data akses telah disimpan, Terima kasih 😊");
 }
 
-function sendText(chatid, text, replymarkup) {
+function sendText(chat_id, text, replymarkup) {
   var data = {
     method: "post",
     payload: {
@@ -70,3 +99,13 @@ function sendText(chatid, text, replymarkup) {
   };
   UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/', data);
 }
+
+function sendMessage(chat_id, message, options) {
+  var payload = {
+    method: "sendMessage",
+    chat_id: chat_id,
+    text: message,
+    parse_mode: "HTML",
+    reply_markup: options
+  };
+  var options =
