@@ -184,5 +184,8 @@
       Serial.println("Ada gerakan tidak wajar pada OLT!");
       bot.sendMessage(CHAT_ID, "Ada gerakan tidak wajar pada OLT!!");
     }
-    delay(1000);
+    else {
+      digitalWrite (buzzer, LOW); 
+    }
+    delay(500);
 }
