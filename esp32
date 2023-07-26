@@ -6,13 +6,13 @@
   #include <HTTPClient.h>
 
   // Wifi network station credentials
-  #define WIFI_SSID "Vigokk" //ssid wifi
-  #define WIFI_PASSWORD "22222222" //pasword wifi
+  #define WIFI_SSID "nama wifi"
+  #define WIFI_PASSWORD "password wifi"
 
   // Telegram BOT Token 
-  #define BOT_TOKEN " " //token bot
-  #define CHAT_ID "12345678" //admin user id telegram
-  const String ALLOWED_USERS[] = {"12345678", "23145675", "85843567", "53578765", "95768432"}; //user id telegram
+  #define BOT_TOKEN "6092090392:AAEGSGPMAOASV9TJbIWMa_QJc_B3jApGQVQ"
+  #define CHAT_ID "12345678" 
+  const String ALLOWED_USERS[] = {"12345678", "09876554", "13245476"};
 
   const unsigned long BOT_MTBS = 1000; // mean time between scan messages
   WiFiClientSecure secured_client;
@@ -20,7 +20,7 @@
   unsigned long bot_lasttime; // last time messages' scan has been done
  
   //LED
-  #define ledPin 32
+  #define ledPin 32  //pin positif led
   int ledStatus = 0;
 
   //Servo Motor
@@ -28,7 +28,7 @@
   int motorAngle = 0;
   Servo servoMotor;
   bool doorLocked = true;
-  bool doorUnlocked = false;
+  bool doorUnlocked = true;
 
   //Magnetic Sensor
   #define DOOR_SWITCH_PIN 19
@@ -36,7 +36,11 @@
   bool isDoorClosed = false;
 
   //buzzer
-  #define buzzer 23
+  #define buzzer 23 //pin positif buzzer
+
+
+  unsigned long previousMillis = 0;
+  const unsigned long interval = 10 * 60 * 1000;  // 10 minute
 
 
   void handleNewMessages(int numNewMessages)
@@ -54,7 +58,7 @@
         is_allowed_user = true;
         break;
       }
-    }
+    } 
     if (!is_allowed_user)
     {
       bot.sendMessage(chat_id, "User tidak terdaftar pada database 😟", "");
@@ -66,10 +70,10 @@
         String from_name = bot.messages[i].from_name;
         if (from_name == "")
           from_name = "Guest";
-        if (text == "/unlock")
+        if (text == "/unlock") //Membuka Kunci Pintu
         {
           motorAngle = 180;
-          servoMotor.write(90);
+          servoMotor.write(90);  //sesuai derajat yang diinginkan
           doorLocked = false;
           bot.sendMessage(chat_id, "Pintu berhasil dibuka", "");
           bot.sendMessage(chat_id, "❗ Pastikan kembali untuk mengunci pintu ketika pekerjaan pada perangkat telah diselesaikan.", "");
@@ -80,10 +84,11 @@
           digitalWrite (buzzer, LOW); 
           delay(500);
         }
-        if (text == "/lock")
+        
+        if (text == "/lock") //Mengunci kembali pintu
         {
           motorAngle = 0;
-          servoMotor.write(25);
+          servoMotor.write(180);  //sesuai derajat yang diinginkan
           doorLocked = true;
           bot.sendMessage(chat_id, "Pintu berhasil dikunci", "");
           digitalWrite(ledPin, HIGH); 
@@ -97,7 +102,8 @@
           digitalWrite (buzzer, LOW); 
           delay(250);
         }
-        if (text == "/status")
+      
+        if (text == "/status") //untuk melihat status pintu terkunci atau tidak
         {
           if (motorAngle)
           {
@@ -108,7 +114,7 @@
             bot.sendMessage(chat_id, "Pintu Terkunci", "");
           }
         }
-        if (text == "/isijob"){
+        if (text == "/isijob"){ 
              bot.sendMessage(chat_id, "❗Silahkan Klik @oltokeyjob_bot untuk mengisikan data.", "");         
         }
         if (text == "/start")
@@ -119,8 +125,8 @@
           welcome += "✔ Segala perintah yang dijalankan pada OLTOKEY Bot akan disimpan pada dashboard OLTOKEY, jadi gunakan fitur yang tersedia dengan baik yang sesuai dengan SOP.\n\n";
           welcome += "❗️Pastikan untuk mengisi data akses pada /isijob \n\n";
           welcome += "OLTOKEY Make It Easy 😉\n\n";
-          welcome += "/unlock : untuk membuka kunci OLT\n";
-          welcome += "/lock : untuk mengunci kunci OLT\n";
+          welcome += "/unlock : untuk membuka kunci pintu OLT\n";
+          welcome += "/lock : untuk mengunci pintu OLT\n";
           welcome += "/status : untuk melihat status kunci OLT\n";
           welcome += "/isijob : untuk mengisi data akses\n";
           bot.sendMessage(chat_id, welcome, "Markdown");
@@ -133,9 +139,7 @@
   {
     Serial.begin(115200);
     Serial.println();
-    pinMode(ledPin, OUTPUT); // initialize digital ledPin as an output.
-    delay(10);
-    digitalWrite(ledPin, LOW); // initialize pin as off (active LOW)
+
     // attempt to connect to Wifi network:
     Serial.print("Connecting to Wifi SSID ");
     Serial.print(WIFI_SSID);
@@ -151,21 +155,21 @@
 
   //Motor Servo
     servoMotor.attach(SERVO_PIN);
-    servoMotor.write(25); // Set posisi awal motor servo ke 0 derajat
+    servoMotor.write(25); // Set posisi awal motor servo ke ... derajat
 
   //LED
-    pinMode(ledPin, OUTPUT); // initialize digital ledPin as an output.
+    pinMode(ledPin, OUTPUT); // initialize digital ledPin 
     delay(10);
     digitalWrite(ledPin, HIGH);
 
   //buzzer
     pinMode(buzzer, OUTPUT);
   
-  //webhook
+  //webhook (diaktifkan apabila pesan tidak tercatat dalam spreadsheet)
   // String url = "https://api.telegram.org/bot" + String(BOT_TOKEN) + "/setWebhook?url=https://script.google.com/macros/s/AKfycbzfaxOci_dtJkHZSE1BZzah-MRsq4Cvg97wv0HpT9bZJ-MoslD7iElsCURTfLM0CJUhNw/exec";
   }
   
-  
+
   void loop()
   {
     if (millis() - bot_lasttime > BOT_MTBS)
@@ -179,13 +183,16 @@
       }
       bot_lasttime = millis();
     }
+
   //Magnetic Sensor ketika pintu dipaksa terbuka saat terkunci
     if (digitalRead(DOOR_SWITCH_PIN) == HIGH && doorLocked) {
       Serial.println("Ada gerakan tidak wajar pada OLT!");
       bot.sendMessage(CHAT_ID, "Ada gerakan tidak wajar pada OLT!!");
+      digitalWrite (buzzer, HIGH); 
     }
     else {
       digitalWrite (buzzer, LOW); 
     }
+    unsigned long currentMillis = millis();
     delay(500);
 }
